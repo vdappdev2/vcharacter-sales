@@ -6,7 +6,7 @@ A complete guide to how your character's stats, traits, and choices shape your j
 
 ## How It Works
 
-You load a character created in [vcharacter-prime](https://github.com/vcharacter/vcharacter-prime) — same stats, element, spirit animal. In this game, **money replaces HP**. You start with a budget determined by your stats, play through a sales quarter, and try to finish with as much money as possible. Reach 2x your starting money for a **Promotion**, or 3x for **Legendary** status — both stored on-chain as verifiable proofs.
+You load a character created in [vcharacter-prime](https://github.com/vdappdev2/vcharacter-prime) — same stats, element, spirit animal. In this game, **money replaces HP**. You start with a budget determined by your stats, play through a sales quarter, and try to finish with as much money as possible. Reach 2x your starting money for a **Promotion**, or 3x for **Legendary** status — both stored on-chain as verifiable proofs.
 
 All dice rolls use blockchain randomness from Verus block hashes, making every outcome provably fair.
 
