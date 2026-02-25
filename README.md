@@ -1,6 +1,6 @@
 # vcharacter-sales
 
-A sales-themed proof-of-concept game built on the Verus blockchain. Uses characters created in [vcharacter-prime](https://github.com/vcharacter/vcharacter-prime) with money replacing HP.
+A sales-themed proof-of-concept game built on the Verus blockchain. Uses characters created in [vcharacter-prime](https://github.com/vdappdev2/vcharacter-prime) with money replacing HP.
 
 ## Overview
 
