@@ -11,6 +11,9 @@ dist/
 .env.*
 !.env.example
 
+# Utility scripts (not part of the app)
+generate-definedkeys.cjs
+
 # OS files
 .DS_Store
 Thumbs.db
