@@ -1,0 +1,59 @@
+/**
+ * POST /api/commitment/request
+ *
+ * Creates a signed LoginConsentRequest for commitment.
+ */
+
+import { json } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
+import {
+  createCommitmentRequest,
+  isCommitmentConfigured,
+} from '$lib/server/loginConsent';
+
+export const POST: RequestHandler = async ({ request, url }) => {
+  if (!isCommitmentConfigured()) {
+    return json(
+      {
+        error: 'Commitment service not configured. Set SERVICE_IDENTITY_WIF environment variable.',
+      },
+      { status: 503 }
+    );
+  }
+
+  try {
+    const body = await request.json();
+    const { clientSeedHash } = body;
+
+    if (!clientSeedHash || typeof clientSeedHash !== 'string') {
+      return json(
+        { error: 'clientSeedHash is required' },
+        { status: 400 }
+      );
+    }
+
+    if (!/^[a-f0-9]{64}$/i.test(clientSeedHash)) {
+      return json(
+        { error: 'clientSeedHash must be a 64-character hex string (SHA-256)' },
+        { status: 400 }
+      );
+    }
+
+    const callbackUrl = `${url.origin}/callback`;
+
+    const result = await createCommitmentRequest(clientSeedHash, callbackUrl);
+
+    return json({
+      qrString: result.qrString,
+      deeplinkUri: result.deeplinkUri,
+      sessionId: result.sessionId,
+      challengeId: result.challengeId,
+    });
+  } catch (error) {
+    console.error('Error creating commitment request:', error);
+    return json(
+      { error: error instanceof Error ? error.message : 'Failed to create commitment request' },
+      { status: 500 }
+    );
+  }
+};
