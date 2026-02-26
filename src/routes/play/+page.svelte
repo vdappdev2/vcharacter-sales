@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import QRCode from 'qrcode';
 	import type { StoredCharacter } from '$lib/types';
 	import type {
@@ -65,6 +65,7 @@
 	// Block waiting state
 	let currentBlockHeight = $state(0);
 	let targetBlockHeight = $state(0);
+	let wakeUpPoll: (() => void) | null = null;
 	let blockSeeds: string[] = $state([]);
 	let blockHashes: string[] = $state([]);
 
@@ -122,7 +123,16 @@
 	// Lifecycle
 	// ============================================================================
 
+	function handleVisibilityChange() {
+		if (document.visibilityState === 'visible' && wakeUpPoll) {
+			wakeUpPoll();
+			wakeUpPoll = null;
+		}
+	}
+
 	onMount(() => {
+		document.addEventListener('visibilitychange', handleVisibilityChange);
+
 		const stored = sessionStorage.getItem('selectedCharacter');
 		if (!stored) {
 			window.location.href = '/';
@@ -140,6 +150,10 @@
 			error = 'Failed to load character';
 			viewState = 'error';
 		}
+	});
+
+	onDestroy(() => {
+		document.removeEventListener('visibilitychange', handleVisibilityChange);
 	});
 
 	// ============================================================================
@@ -173,7 +187,10 @@
 				return targetBlock.hash;
 			}
 
-			await new Promise(resolve => setTimeout(resolve, 30000));
+			await new Promise<void>(resolve => {
+				wakeUpPoll = resolve;
+				setTimeout(() => { wakeUpPoll = null; resolve(); }, 30000);
+			});
 		}
 	}
 
