@@ -160,6 +160,21 @@ function hexToString(hex: string): string {
 }
 
 /**
+ * Decode a name field that may be either a JSON-encoded string (new
+ * application/json shape) or a bare string (legacy text/plain shape).
+ * Falls back to the raw value on any parse failure or non-string result.
+ */
+function tryParseJsonString(value: string): string {
+  try {
+    const parsed = JSON.parse(value);
+    if (typeof parsed === 'string') return parsed;
+  } catch {
+    // Not valid JSON → legacy bare string.
+  }
+  return value;
+}
+
+/**
  * Extract string value from DataDescriptor objectdata
  */
 function extractStringValue(descriptor: DataDescriptor): string | undefined {
@@ -229,7 +244,7 @@ export function parseCharacterContentMap(contentMap: Record<string, unknown>): P
     if (!value) continue;
 
     if (label === VDXF_KEYS.labels.name) {
-      result.name = value;
+      result.name = tryParseJsonString(value);
     } else if (label === VDXF_KEYS.labels.stats) {
       try {
         result.stats = JSON.parse(value);
@@ -278,7 +293,7 @@ export function parseAllCharacters(contentMap: Record<string, unknown>): ParsedC
       if (currentCharacter.name || currentCharacter.proof) {
         characters.push(currentCharacter);
       }
-      currentCharacter = { name: value };
+      currentCharacter = { name: tryParseJsonString(value) };
     } else if (label === VDXF_KEYS.labels.stats) {
       try {
         currentCharacter.stats = JSON.parse(value);
