@@ -377,3 +377,5 @@ Top achievements — Promotion and Legendary — are stored on the Verus blockch
 - Negotiation actions for both clients
 
 Anyone can look up your VerusID, extract the achievement data, and verify that every roll and outcome is legitimate. No trust required.
+
+The achievement payload is stored as gzipped JSON under mimetype `application/gzip` (the bytes are kept compressed to fit the signed update inside mobile wallet deeplink URI limits). To read it: hex-decode the `objectdata`, `gunzip` the bytes, then `JSON.parse` the result.

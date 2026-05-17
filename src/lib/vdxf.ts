@@ -5,6 +5,7 @@
  * for storing character data and sales achievements on-chain.
  */
 
+import { gzipSync, gunzipSync } from 'zlib';
 import type { StoredCharacter } from './types';
 import type { SalesAchievementProofData } from './sales/types';
 import { VDXF_KEYS } from './config';
@@ -109,11 +110,12 @@ export function buildCharacterContentMap(character: StoredCharacter): ContentMul
 /**
  * Build a ContentMultiMap for sales achievement storage
  *
- * Uses salesAchievement as outer key, with salesAchievementPromotion or salesAchievementLegendary as the label.
+ * Achievement JSON is gzipped to keep the signed wallet deeplink URI short
+ * enough to fit inside mobile wallet URI caps. Stored as a bare hex string
+ * under mimetype application/gzip; the daemon treats mimetype as an opaque
+ * label and stores bytes unchanged.
  */
 export function buildSalesAchievementContentMap(achievement: SalesAchievementProofData): ContentMultiMap {
-  const entries: DataDescriptorWrapper[] = [];
-
   // Select the label based on tier
   const label = achievement.tier === 'legendary'
     ? VDXF_KEYS.salesAchievementLegendary
@@ -127,13 +129,21 @@ export function buildSalesAchievementContentMap(achievement: SalesAchievementPro
     throw new Error('Sales outer VDXF key not configured. Generate with getvdxfid.');
   }
 
-  // Entry containing achievement data with tier-specific label
-  entries.push(
-    buildDataDescriptor(label, achievement, 'application/json')
-  );
+  const json = JSON.stringify(achievement);
+  const gzipped = gzipSync(Buffer.from(json, 'utf8'));
+  const hex = gzipped.toString('hex');
+
+  const wrapper: DataDescriptorWrapper = {
+    [VDXF_KEYS.dataDescriptor]: {
+      version: 1,
+      label,
+      mimetype: 'application/gzip',
+      objectdata: hex,
+    },
+  };
 
   return {
-    [VDXF_KEYS.salesAchievement]: entries,
+    [VDXF_KEYS.salesAchievement]: [wrapper],
   };
 }
 
@@ -331,6 +341,29 @@ export function findCharacterByRollBlockHeight(
 // Sales Achievement Parsing
 // ============================================================================
 
+// Cap gunzip output to bound zip-bomb DoS from untrusted on-chain payloads.
+// Legendary achievements are ~1.5 KB; 64 KB leaves generous headroom.
+const ACHIEVEMENT_GUNZIP_MAX_BYTES = 64 * 1024;
+const HEX_PATTERN = /^[0-9a-fA-F]*$/;
+
+function decodeAchievementJson(descriptor: DataDescriptor): string | undefined {
+  if (descriptor.mimetype === 'application/gzip') {
+    const hex = typeof descriptor.objectdata === 'string' ? descriptor.objectdata : undefined;
+    if (!hex || hex.length === 0 || hex.length % 2 !== 0 || !HEX_PATTERN.test(hex)) {
+      return undefined;
+    }
+    try {
+      const bytes = Buffer.from(hex, 'hex');
+      const decompressed = gunzipSync(bytes, { maxOutputLength: ACHIEVEMENT_GUNZIP_MAX_BYTES });
+      return decompressed.toString('utf8');
+    } catch {
+      return undefined;
+    }
+  }
+
+  return extractStringValue(descriptor);
+}
+
 /**
  * Parse all sales achievements from a ContentMultiMap
  */
@@ -353,7 +386,7 @@ export function parseSalesAchievements(contentMap: Record<string, unknown>): Sal
     // Check if label is a valid achievement type
     if (!validLabels.includes(descriptor.label)) continue;
 
-    const value = extractStringValue(descriptor);
+    const value = decodeAchievementJson(descriptor);
     if (!value) continue;
 
     try {
